@@ -1,4 +1,5 @@
-# Nine Sols Example Mod
+# DashRest
 
-Write a description of your mod here, it will be displayed on thunderstore.
-Remember to update the icon.png to something representing your mod.
+# Feature
+- Air to Ground no reset dash cooldown
+- Custom Dash Cooldown

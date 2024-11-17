@@ -2,43 +2,47 @@
 using BepInEx.Configuration;
 using HarmonyLib;
 using NineSolsAPI;
-using UnityEngine;
 
 namespace DashRest;
 
 [BepInDependency(NineSolsAPICore.PluginGUID)]
 [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
 public class DashRest : BaseUnityPlugin {
-    private ConfigEntry<bool> enableSomethingConfig = null!;
-    private ConfigEntry<KeyboardShortcut> somethingKeyboardShortcut = null!;
-
-    private Harmony harmony = null!;
+    private ConfigEntry<float> _dashCooldown = null!;
+    private Harmony _harmony = null!;
 
     private void Awake() {
         Log.Init(Logger);
+
         RCGLifeCycle.DontDestroyForever(gameObject);
 
-        // Load patches from any class annotated with @HarmonyPatch
-        harmony = Harmony.CreateAndPatchAll(typeof(DashRest).Assembly);
+        _harmony = new Harmony(PluginInfo.PLUGIN_GUID);
+        _harmony.PatchAll();
 
-        enableSomethingConfig = Config.Bind("General.Something", "Enable", true, "Enable the thing");
-        somethingKeyboardShortcut = Config.Bind("General.Something", "Shortcut",
-            new KeyboardShortcut(KeyCode.H, KeyCode.LeftControl), "Shortcut to execute");
+        _dashCooldown = Config.Bind("Settings", "Dash Cooldown", 1.0f, "Cooldown time for dashing.");
+        _dashCooldown.SettingChanged += (_, _) => SetDashCooldown(_dashCooldown.Value);
 
-        KeybindManager.Add(this, TestMethod, () => somethingKeyboardShortcut.Value);
-
-        Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        Log.Info($"Plugin {PluginInfo.PLUGIN_GUID} loaded successfully.");
+        SetDashCooldown(_dashCooldown.Value);
     }
 
+    private void SetDashCooldown(float cooldownTime) {
+        if (SaveManager.Instance == null) {
+            Log.Warning("SaveManager.Instance is null; cannot set dash cooldown.");
+            return;
+        }
 
-    private void TestMethod() {
-        if (!enableSomethingConfig.Value) return;
-        ToastManager.Toast("Shortcut activated");
-
+        var statData = SaveManager.Instance.allStatData.GetStat("RollCoolDown 閃避CD");
+        if (statData != null) {
+            Traverse.Create(statData.Stat).Field("_value").SetValue(cooldownTime);
+            Log.Info($"Dash cooldown set to {cooldownTime} seconds.");
+        } else {
+            Log.Warning("RollCoolDown 閃避CD stat not found; cannot set dash cooldown.");
+        }
     }
 
     private void OnDestroy() {
-
-        harmony.UnpatchSelf();
+        _harmony?.UnpatchSelf();
+        Log.Info("Plugin unpatched and destroyed.");
     }
 }
